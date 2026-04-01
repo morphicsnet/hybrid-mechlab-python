@@ -1,0 +1,557 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.75em}
+\onehalfspacing
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}
+
+\newtheorem{definition}{Definition}
+\newtheorem{proposition}{Proposition}
+\newtheorem{remark}{Remark}
+
+\newcommand{\TODO}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}
+\newcommand{\claim}[1]{\textcolor{blue}{\textbf{Claim:} #1}}
+\newcommand{\reviewer}[1]{\textcolor{teal}{\textbf{Reviewer-facing note:} #1}}
+\newcommand{\R}{\mathbb{R}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Unified paper scaffold}
+\fancyhead[R]{\thepage}
+
+\begin{document}
+
+\begin{center}
+{\LARGE \textbf{A Sheaf-Theoretic Block-Level Transcoder for Hybrid Transformer--Linear Models}}\\[0.5em]
+{\large Sparse local codes, learned restriction maps, and cohomological diagnostics}\\[1em]
+{\normalsize Submission-ready LaTeX scaffold and extended outline}
+\end{center}
+
+\vspace{1em}
+
+\section*{Working title options}
+
+\begin{enumerate}[leftmargin=1.5em]
+    \item \textbf{A Sheaf-Theoretic Block-Level Transcoder for Hybrid Transformer--Linear Models}
+    \item \textbf{Block-Level Geometric Representation Learning for Hybrid 3:1 Architectures}
+    \item \textbf{From Topological Sidecars to Cohomological Diagnostics in Hybrid Language Models}
+\end{enumerate}
+
+\section*{Abstract}
+
+Hybrid transformer--linear architectures generate representations across distinct computational regimes, but standard topological analysis remains largely post hoc: it summarizes activation geometry after the fact rather than modeling how consistency and obstruction arise across the computation itself. We introduce a sheaf-theoretic block-level transcoder for hybrid models in which hook-window activations are treated as local sections over a cover of the computation graph, and learned restriction maps define local transport across overlapping computational regions. This formulation yields exact cohomological observables---including global section dimension, obstruction classes, sheaf Laplacian spectra, and stalk-level inconsistency---that replace heuristic coactivation and persistence sidecars with architecture-aware local-to-global diagnostics. We instantiate the framework on block-structured hybrid 3:1 architectures, where tract layers compress context through recurrent or linear state updates and bridge layers periodically restore exact retrieval. The resulting geometry exposes bridge necessity, cross-block concept evolution, and intervention-induced obstruction in a way that flat residual-space transcoders do not. The paper contributes (i) a formal sheaf model of hybrid computation, (ii) a trainable block-level geometric transcoder with consistency losses, and (iii) an experimental program for mechanistic interpretability on hybrid language models.
+
+\section*{Paper identity}
+
+This is a \textbf{methods paper}, not a manifesto. The central object is a \textbf{block-level geometric transcoder} grounded in a \textbf{sheaf-theoretic formalization} of hybrid computation. The implementation vehicle can be BLT or a BLT-derived system, but the intellectual center of gravity should be:
+\begin{enumerate}[leftmargin=1.5em]
+    \item a formal object,
+    \item a trainable method,
+    \item a reproducible instrumentation pipeline,
+    \item and an empirical interpretability program.
+\end{enumerate}
+
+\section{Introduction}
+
+\subsection*{Purpose of the section}
+State the problem, narrow the contribution, and make it clear that the paper proposes a concrete representation-learning and interpretability method for hybrid transformer--linear architectures.
+
+\subsection*{Core narrative}
+Classical topological data analysis is useful when the object of study is a fixed dataset or point cloud. It becomes insufficient when the ``data'' is an evolving hidden-state computation whose geometry changes across heterogeneous computational regimes. Hybrid transformer--linear architectures sharpen this problem: one part of the model compresses context into bounded recurrent or state-space updates, while another part periodically restores exact token-to-token interaction. A post hoc persistence summary of activations does not describe how these regimes coordinate, where they fail to coordinate, or how such failures propagate through the model.
+
+The central claim of this paper is that the computation itself should be modeled as a sheaf. Hook-window activations become local sections, overlaps of computation windows induce restriction maps, and failures of global consistency become cohomological obstructions. On top of this formalism, we introduce a block-level geometric transcoder that learns sparse local codes and restriction maps over hybrid blocks, making consistency, obstruction, and bridge dependence first-class observables rather than after-the-fact heuristics.
+
+\subsection*{Three-sentence problem statement}
+\begin{quote}
+Hybrid transformer--linear models induce block-structured computation with multiple local regimes, but existing topological summaries of activations remain largely post hoc. We model block-local hook activations as sections of a sheaf over a cover of the computation graph, with learned restriction maps capturing transport across overlapping computational regions. This yields a trainable block-level transcoder whose sheaf Laplacian and cohomology provide exact diagnostics for global consistency, irreducible obstruction, and bridge-mediated retrieval.
+\end{quote}
+
+\subsection*{Contribution bullets}
+\begin{enumerate}[leftmargin=1.5em]
+    \item We formalize a hybrid forward pass as a cellular sheaf over block-local hook windows.
+    \item We introduce a block-level geometric transcoder with sparse local codes and learned restriction maps.
+    \item We derive exact local-to-global diagnostics from the cochain complex and sheaf Laplacian.
+    \item We design experiments for bridge necessity, compression-forgetting, cross-block concept evolution, and intervention-induced obstruction.
+\end{enumerate}
+
+\reviewer{Make the introduction feel empirical and method-driven. Save the broader TDS/GDS framing for the discussion section or the final paragraph of the introduction.}
+
+\section{Background and problem setting}
+
+\subsection{Hybrid transformer--linear architectures}
+
+Define the target class of models. A canonical case is a repeating 3:1 block in which three tract layers perform recurrent, state-space, or linearized transport updates and a fourth bridge layer performs full attention or another exact retrieval operation. The tract layers form a compressed transport regime; the bridge layer acts as a global refresh or exact retrieval regime.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.9\linewidth}{
+\centering
+\textbf{Figure 1 placeholder: Hybrid 3:1 block cover}\\
+Depict three tract hooks and one bridge hook, with overlaps induced by shared residual stream and block-local computation windows.
+}}
+\caption{Hybrid 3:1 block structure and the corresponding cover by hook windows.}
+\end{figure}
+
+\subsection{Limits of post hoc topological summaries}
+
+Explain why standard TDA is insufficient here:
+\begin{enumerate}[leftmargin=1.5em]
+    \item it treats latent geometry as static rather than computationally generated,
+    \item it does not encode architectural overlap or transport,
+    \item it summarizes shape after the fact instead of modeling consistency during computation.
+\end{enumerate}
+
+\subsection{Why sheaves are the correct local-to-global object}
+
+A sheaf is the natural formal object when one has:
+\begin{enumerate}[leftmargin=1.5em]
+    \item local data on overlapping regions,
+    \item restriction maps across inclusions or overlaps,
+    \item a gluing law for global consistency,
+    \item and algebraic obstructions when gluing fails.
+\end{enumerate}
+
+That is exactly the structure present in a hooked, block-localized hybrid computation.
+
+\reviewer{This section should read like careful problem setup, not like a survey article. Keep it short and technical.}
+
+\section{Formal framework}
+
+\subsection{Base space and cover}
+
+\begin{definition}[Hook-window cover]
+Let $X$ denote the block-structured computation graph of a hybrid model. Define a cover $\mathcal{U} = \{U_i\}_{i=1}^m$ where each open set
+\[
+U_i = (\text{layer range}, \text{hook name}, \text{block index})
+\]
+corresponds to a hook-window over which an activation tensor is captured.
+\end{definition}
+
+Each overlap $U_i \cap U_j$ represents a shared computational region: shared tokens, shared residual subspace, or a region of the computation graph on which both hook-windows impose constraints.
+
+\subsection{Sections and restriction maps}
+
+\begin{definition}[Activation sheaf]
+A sheaf $\mathcal{F}$ over $\mathcal{U}$ assigns to each $U_i$ a vector space $\mathcal{F}(U_i)$ of admissible activations, typically a subspace of $\R^{T \times d}$ or a sparse-coded representation thereof. For each inclusion or overlap map, $\mathcal{F}$ provides a restriction map
+\[
+\rho_{U_i,U_j} : \mathcal{F}(U_i) \to \mathcal{F}(U_j)
+\]
+whenever the computational structure defines such a restriction.
+\end{definition}
+
+For a particular prompt, the model induces a local section
+\[
+s_i \in \mathcal{F}(U_i).
+\]
+
+\subsection{Cochain complex}
+
+The hooked activations induce a cochain complex
+\[
+C^0(\mathcal{U};\mathcal{F}) \xrightarrow{\delta^0}
+C^1(\mathcal{U};\mathcal{F}) \xrightarrow{\delta^1}
+C^2(\mathcal{U};\mathcal{F}).
+\]
+
+Interpretation:
+\begin{itemize}[leftmargin=1.5em]
+    \item $C^0$: local sections, one per hook-window;
+    \item $C^1$: pairwise disagreements over overlaps;
+    \item $C^2$: loop-level inconsistency or holonomy over triple overlaps.
+\end{itemize}
+
+For a 0-cochain $s = \{s_i\}$, define the first coboundary by
+\[
+(\delta^0 s)_{ij} = \rho_{U_i,U_i\cap U_j}(s_i) - \rho_{U_j,U_i\cap U_j}(s_j).
+\]
+
+\subsection{Cohomology and sheaf Laplacian}
+
+\begin{definition}[Global sections and obstructions]
+The sheaf cohomology groups of interest are
+\[
+H^0 = \ker(\delta^0), \qquad
+H^1 = \ker(\delta^1)/\operatorname{im}(\delta^0).
+\]
+\end{definition}
+
+Interpretation:
+\begin{itemize}[leftmargin=1.5em]
+    \item $\dim H^0$: number of independent globally consistent section patterns;
+    \item $\dim H^1$: irreducible obstruction classes that cannot be resolved by local correction.
+\end{itemize}
+
+Define the degree-0 sheaf Laplacian by
+\[
+L_0 = (\delta^0)^\top \delta^0.
+\]
+
+\begin{proposition}
+$\ker(L_0) = H^0$.
+\end{proposition}
+
+The smallest nonzero eigenvalue of $L_0$ acts as a spectral robustness measure for global consistency.
+
+\subsection{Stalks and local inconsistency}
+
+At a point $x = (\ell,t)$ corresponding to a layer-token position, define the stalk $\mathcal{F}_x$ as the colimit of local section data over all hook-windows containing $x$. A practical stalk defect metric is
+\[
+\mathrm{defect}(x)
+=
+\frac{1}{\binom{|S_x|}{2}}
+\sum_{(s_i,s_j)\in S_x^2}
+\left\|
+\rho(s_i)\vert_x - \rho(s_j)\vert_x
+\right\|,
+\]
+where $S_x$ denotes the family of local sections participating at $x$.
+
+\reviewer{This section is where rigor earns trust. Keep the notation stable and avoid changing the model definition halfway through the paper.}
+
+\section{Method: Block-Level Geometric Transcoder}
+
+\subsection{Overview}
+
+The method maps hooked activations to sparse block-local codes, learns restriction maps across overlapping hook-windows, and optimizes both reconstruction and sheaf-consistency objectives.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.9\linewidth}{
+\centering
+\textbf{Figure 2 placeholder: Method diagram}\\
+Activation capture $\rightarrow$ sparse local code encoder $\rightarrow$ learned restriction maps $\rightarrow$ coboundary / Laplacian losses $\rightarrow$ diagnostic readouts.
+}}
+\caption{Block-level geometric transcoder pipeline.}
+\end{figure}
+
+\subsection{Sparse local codes}
+
+For each hook-window $U_i$, let $a_i \in \R^{T\times d}$ be the captured activation. The encoder maps it to a sparse code
+\[
+z_i = E_\theta(a_i),
+\]
+with either tokenwise or blockwise sparsity constraints. The key conceptual choice is that $z_i$ is not treated as a generic latent vector; it is a local chart or stalk-level representation.
+
+\subsection{Learned restriction maps}
+
+For overlapping windows $(U_i,U_j)$, define a learned linear or low-rank transport operator
+\[
+\rho_{ij}(z_i) = R_{ij} z_i,
+\]
+with $R_{ij}$ constrained according to architectural prior:
+\begin{itemize}[leftmargin=1.5em]
+    \item bridge-to-tract maps may be low-rank or structured,
+    \item tract-to-tract maps may be approximately norm-preserving,
+    \item identity maps serve as a baseline, not the headline method.
+\end{itemize}
+
+\subsection{Objective}
+
+A natural objective is
+\[
+\mathcal{L}
+=
+\mathcal{L}_{\mathrm{recon}}
++
+\lambda_{\delta}\|\delta^0 z\|_2^2
++
+\lambda_{\mathrm{spec}}\mathcal{L}_{\mathrm{spec}}
++
+\lambda_{\mathrm{reg}}\mathcal{R}(R),
+\]
+where:
+\begin{align*}
+\mathcal{L}_{\mathrm{recon}} &=
+\sum_i \|D_\phi(z_i) - a_i\|_2^2,\\
+\|\delta^0 z\|_2^2 &=
+\sum_{(i,j)}
+\left\|
+R_{i\to ij} z_i - R_{j\to ij} z_j
+\right\|_2^2.
+\end{align*}
+
+Possible regularizers:
+\begin{itemize}[leftmargin=1.5em]
+    \item sparsity penalties on $z_i$,
+    \item orthogonality or low-rank constraints on $R_{ij}$,
+    \item spectral penalties encouraging a stable but nontrivial Laplacian gap.
+\end{itemize}
+
+\subsection{Derived observables}
+
+The trained system reports:
+\begin{enumerate}[leftmargin=1.5em]
+    \item $\dim H^0$,
+    \item $\dim H^1$,
+    \item spectral gap of $L_0$,
+    \item stalk defect maps,
+    \item bridge dependence / bridge necessity,
+    \item obstruction energy.
+\end{enumerate}
+
+A practical obstruction-energy decomposition is
+\[
+z = z_{\mathrm{harm}} + z_{\mathrm{obs}},
+\qquad
+\chi(z) = \frac{\|z_{\mathrm{obs}}\|}{\|z\|}.
+\]
+
+\reviewer{This is the heart of the paper. Make it obvious that the method is trainable and not merely a reinterpretation of old logging code.}
+
+\section{System and implementation}
+
+\subsection{Implementation goal}
+
+Present BLT or a BLT-derived system as the instrumentation harness, not as the paper's sole contribution. The system should support:
+\begin{itemize}[leftmargin=1.5em]
+    \item hook specification by block and hook name,
+    \item activation capture,
+    \item sparse-code extraction,
+    \item restriction-map estimation or learning,
+    \item interventions,
+    \item cochain / Laplacian construction,
+    \item export of traces and diagnostics.
+\end{itemize}
+
+\subsection{Minimal implementation note}
+
+If the current codebase contains a random-projection or minimal sparse encoder, state explicitly that this is prototype infrastructure. The submission should either:
+\begin{enumerate}[leftmargin=1.5em]
+    \item replace it with a learned encoder, or
+    \item clearly separate ``prototype instrumentation'' from ``final learned method'' in the experimental narrative.
+\end{enumerate}
+
+\subsection{Canonical configuration warning}
+
+\TODO{Normalize all model specifications before submission. Ensure layer count, hidden dimension, block count, and hook naming are consistent throughout the paper, code, tables, and appendix.}
+
+\reviewer{A methods paper can survive a prototype implementation. It will not survive inconsistent model specs.}
+
+\section{Experimental design}
+
+\subsection{Baselines}
+
+At minimum compare against:
+\begin{enumerate}[leftmargin=1.5em]
+    \item flat sparse transcoder / CLT baseline,
+    \item block-level transcoder with post hoc TDA sidecar,
+    \item identity-restriction sheaf baseline,
+    \item learned-restriction sheaf model.
+\end{enumerate}
+
+\subsection{Core experiments}
+
+\subsubsection*{A. Bridge necessity ablations}
+Intervene on bridge activations by zeroing, scaling, or clamping and measure change in prediction confidence, logit attribution, or task success. The question is whether bridge layers are structurally necessary for the task class under study.
+
+\subsubsection*{B. Compression-forgetting curves}
+Track which tract-layer features survive into later blocks and which disappear under bounded-state compression. This directly tests the architectural distinction between compressed transport and exact retrieval.
+
+\subsubsection*{C. Cross-block concept evolution}
+Build a block-level supernode graph in which each block contributes a set of active sparse features. Measure how a concept cluster transforms from tract regime to bridge regime and into the next block.
+
+\subsubsection*{D. Obstruction localization}
+Compare sidecar Betti/coactivation summaries against exact sheaf-derived quantities such as stalk defect and nonzero $H^1$ generators. The claim is that the latter localize inconsistency more sharply.
+
+\subsubsection*{E. Pure-attention versus hybrid comparison}
+Run the same pipeline on a pure-attention baseline. The expectation is that the sheaf structure becomes flatter and the tract/bridge distinction vanishes, reducing the explanatory advantage of block-local cohomological diagnostics.
+
+\subsection{Metrics}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.28\linewidth} p{0.62\linewidth}}
+\toprule
+\textbf{Metric} & \textbf{Interpretation} \\
+\midrule
+Reconstruction error & Fidelity of sparse local codes and decoder \\
+Sparsity level & Degree of local chart compression \\
+$\dim H^0$ & Number of globally consistent section patterns \\
+$\dim H^1$ & Number of irreducible obstruction modes \\
+Spectral gap & Robustness of global consistency \\
+Stalk defect & Local contradiction at layer-token positions \\
+Bridge necessity & Functional reliance on bridge layers \\
+Obstruction energy $\chi$ & Fraction of representation outside harmonic/global component \\
+\bottomrule
+\end{tabular}
+\caption{Primary quantitative metrics.}
+\end{table}
+
+\reviewer{The experiments should test whether the formal objects explain something not already visible in flat sparse-feature baselines.}
+
+\section{Results structure}
+
+\subsection*{Result question 1: Are the sheaf signals nontrivial?}
+Show that $H^1$, spectral gap, and stalk defect vary meaningfully across prompts, tasks, and interventions.
+
+\subsection*{Result question 2: Do the signals align with architecture?}
+Show that tract and bridge layers occupy different roles, especially in block-local loops and bridge-mediated retrieval.
+
+\subsection*{Result question 3: Do the signals improve interpretability?}
+Show sharper localization, clearer circuit decomposition, or better predictive differentiation than TDA-sidecar metrics.
+
+\subsection*{Result question 4: Is the extra machinery justified?}
+Show either improved explanatory power at comparable cost or substantially better mechanistic diagnostics for modest additional overhead.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.9\linewidth}{
+\centering
+\textbf{Figure 3 placeholder: Core quantitative result}\\
+Suggested panel: bridge ablation effect, obstruction energy shift, and spectral gap by task class.
+}}
+\caption{Example core quantitative result figure.}
+\end{figure}
+
+\section{Discussion}
+
+This section should place the method in the broader research hierarchy without letting that hierarchy swallow the paper.
+
+A disciplined framing:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Geometric Data Science} is the umbrella.
+    \item \textbf{Topological Data Science} is the engineering interface.
+    \item \textbf{Sheaf transport and cohomology} are the formal core for the present method.
+    \item \textbf{Classical TDA} remains useful as a downstream analysis layer, but is no longer the main representational object.
+\end{itemize}
+
+\reviewer{Keep the discussion short. The paper wins or loses on the method and experiments, not on the philosophical scope of the framing.}
+
+\section{Limitations}
+
+\begin{enumerate}[leftmargin=1.5em]
+    \item \textbf{Prototype gap.} If the current system still uses approximate sidecars or minimal encoders, say so directly.
+    \item \textbf{Model-spec consistency.} The paper must standardize all architectural details before submission.
+    \item \textbf{Descriptive versus causal interpretation.} A nonzero obstruction class is evidence of inconsistency, not automatically evidence of a semantically meaningful causal mechanism.
+    \item \textbf{Scalability.} Exact sheaf operators may become expensive at large scale unless restriction maps and overlap structure are strongly structured.
+\end{enumerate}
+
+\section{Venue-specific positioning}
+
+\subsection{TMLR}
+Lead with technical correctness, method clarity, and ablations. Emphasize that the paper introduces a principled representation-learning object and evaluates it carefully.
+
+\subsection{ICLR / NeurIPS}
+Lead with hybrid-language-model interpretability, architecture-aware representation learning, and benchmarkable experiments. Keep the introduction more empirical and less philosophical.
+
+\subsection{Topology or geometry companion paper}
+A separate companion paper can focus more heavily on:
+\begin{itemize}[leftmargin=1.5em]
+    \item exact interpretation of sidecar metrics as sheaf approximations,
+    \item holonomy over block-local loops,
+    \item spectral theory of the sheaf Laplacian on hybrid covers,
+    \item and the relation between persistence-style summaries and cohomological observables.
+\end{itemize}
+
+\section{Figures and tables checklist}
+
+\subsection*{Essential figures}
+\begin{enumerate}[leftmargin=1.5em]
+    \item Hybrid 3:1 block cover and overlaps
+    \item Sheaf construction and cochain complex
+    \item Method pipeline
+    \item Core quantitative result
+    \item Cross-block concept evolution / supernode graph
+\end{enumerate}
+
+\subsection*{Essential tables}
+\begin{enumerate}[leftmargin=1.5em]
+    \item Method component comparison
+    \item Quantitative metrics table
+    \item Intervention result summary
+\end{enumerate}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.32\linewidth} p{0.18\linewidth} p{0.18\linewidth} p{0.18\linewidth}}
+\toprule
+\textbf{Method} & \textbf{Sparse codes} & \textbf{Restriction maps} & \textbf{Exact cohomology} \\
+\midrule
+Flat sparse transcoder & Yes & No & No \\
+BLT + TDA sidecar & Yes & Implicit / none & No \\
+Identity-sheaf baseline & Yes & Fixed identity & Partial \\
+Learned-sheaf BLT & Yes & Learned & Yes \\
+\bottomrule
+\end{tabular}
+\caption{Minimal comparison table to anchor the method space.}
+\end{table}
+
+\section{Reviewer objections and preemptive responses}
+
+\subsection*{``Why not just use a graph neural method?''}
+Because the core object is not merely adjacency but local data over overlaps with explicit transport between local representations. The restriction-map structure is the point.
+
+\subsection*{``Is this just a reinterpretation of existing CLT machinery?''}
+No. The reinterpretation is only the first step. The actual method adds learned restriction maps, cohomological losses, Laplacian diagnostics, and block-local architectural priors.
+
+\subsection*{``Why hybrids specifically?''}
+Because block-structured hybrid models induce meaningful overlap geometry and tract/bridge distinctions. In pure-attention models, that structure collapses toward a flatter regime.
+
+\subsection*{``Where is the empirical value?''}
+The paper should answer with bridge ablations, compression-forgetting curves, cross-block concept evolution, and exact-vs-sidecar localization experiments.
+
+\section{Minimal conference-length page budget}
+
+For a 12-page conference version:
+\begin{center}
+\begin{tabular}{lr}
+\toprule
+Section & Pages \\
+\midrule
+Introduction & 1.0 \\
+Background & 1.0 \\
+Formal framework & 2.0 \\
+Method & 2.0 \\
+System & 1.0 \\
+Experiments & 2.0 \\
+Results & 2.0 \\
+Discussion / Limitations & 1.0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section*{Closing sentence for the entire project}
+
+\begin{quote}
+We replace post hoc topological summaries of hybrid-model activations with a learned sheaf over block-local hook windows, turning consistency, obstruction, and bridge dependence into exact cohomological observables.
+\end{quote}
+
+\section*{Next drafting move}
+
+Use this scaffold to produce the full conference manuscript in the following order:
+\begin{enumerate}[leftmargin=1.5em]
+    \item lock the canonical model specification,
+    \item write the formal framework section cleanly,
+    \item define the learned restriction-map method and objective,
+    \item specify the ablation suite,
+    \item then write the introduction around the finished method rather than around the broad vision.
+\end{enumerate}
+
+\end{document}
